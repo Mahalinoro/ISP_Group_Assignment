@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <termios.h>
+#include <signal.h>
 
 /* Needs to be fixed: It doesn't stop when CTRL+C => Needs to be explicitly implemented */
 /* If anyone know how to link the library with the c program during execution?? */
@@ -68,6 +69,7 @@ char ch;
 
 char key;
 int r;
+int q;
 
 struct TIME{
   int hour;
@@ -83,6 +85,20 @@ void* reset(void *arg){
       key = readch();
       if(key == 'R' || key == 'r'){
         r = 1;
+      }
+    }
+  pthread_exit(NULL);
+};
+
+//Thread Function to catch q to exit the program
+
+void* stop(void *arg){
+  q = 0;
+
+  if(kbhit()){
+      key = readch();
+      if(key == 'Q' || key == 'q'){
+        q = 1;
       }
     }
   pthread_exit(NULL);
@@ -112,6 +128,8 @@ int main(void){
     time(&start);
     struct tm *start_time = localtime(&start);
     pthread_t treset;
+    
+    pthread_t tstop;
 
     curr_time.hour = start_time->tm_hour;
     curr_time.min = start_time->tm_min;
@@ -124,6 +142,7 @@ int main(void){
         end_time = localtime(&end);
 
         pthread_create(&treset, NULL, &reset, NULL);
+	pthread_create(&tstop,NULL, &stop, NULL);
         pthread_join(treset, NULL); 
 
         // Check if r == 1 of reset
@@ -133,10 +152,16 @@ int main(void){
           curr_time.sec = start_time->tm_sec;
         }
 
+
         system("clear");
         diffTime(curr_time, *end_time, &diff);
         printf("StopWatch: \t\t\t\t %02d:%02d:%02d\n", diff.hour, diff.min, diff.sec);        
         sleep(1);
+
+	else if(q==1){
+
+		kill(getpid(), SIGKILL);
+	}
     };
     return 0;
 }
